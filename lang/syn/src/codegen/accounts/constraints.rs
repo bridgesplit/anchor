@@ -657,6 +657,7 @@ fn generate_constraint_init_group(
             decimals,
             freeze_authority,
             token_program,
+            confidential_transfer_data,
         } => {
             let token_program = match token_program {
                 Some(t) => t.to_token_stream(),
@@ -664,6 +665,10 @@ fn generate_constraint_init_group(
             };
             let owner_optional_check = check_scope.generate_check(owner);
             let freeze_authority_optional_check = match freeze_authority {
+                Some(fa) => check_scope.generate_check(fa),
+                None => quote! {},
+            };
+            let confidential_transfer_data_check = match confidential_transfer_data {
                 Some(fa) => check_scope.generate_check(fa),
                 None => quote! {},
             };
@@ -678,6 +683,7 @@ fn generate_constraint_init_group(
                 #rent_optional_check
                 #owner_optional_check
                 #freeze_authority_optional_check
+                #confidential_transfer_data_check
             };
 
             let payer_optional_check = check_scope.generate_check(payer);
@@ -693,6 +699,15 @@ fn generate_constraint_init_group(
             let freeze_authority = match freeze_authority {
                 Some(fa) => quote! { Option::<&anchor_lang::prelude::Pubkey>::Some(&#fa.key()) },
                 None => quote! { Option::<&anchor_lang::prelude::Pubkey>::None },
+            };
+
+            let confidential_transfer_data = match confidential_transfer_data {
+                Some(fa) => {
+                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferIntializeMintArgs>::Some(&#fa) }
+                }
+                None => {
+                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferIntializeMintArgs>::None }
+                }
             };
 
             quote! {
@@ -712,12 +727,22 @@ fn generate_constraint_init_group(
                         #create_account
 
                         // Initialize the mint account.
-                        let cpi_program = #token_program.to_account_info();
+                        let cpi_program = #token_program.clone().to_account_info();
                         let accounts = ::anchor_spl::token_interface::InitializeMint2 {
                             mint: #field.to_account_info(),
                         };
                         let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
                         ::anchor_spl::token_interface::initialize_mint2(cpi_ctx, #decimals, &#owner.key(), #freeze_authority)?;
+                    }
+                    if #confidential_transfer_data.is_some() {
+                        let cpi_program = #token_program.to_account_info();
+                        let accounts = ::anchor_spl::token_interface::ConfidentialTransferIntializeMint {
+                            token_program_id: #token_program.to_account_info(),
+                            mint: #field.to_account_info(),
+                        };
+                        let c = #confidential_transfer_data.unwrap();
+                        let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
+                        ::anchor_spl::token_interface::confidential_transfer_initialize_mint(cpi_ctx, *c)?;
                     }
                     let pa: #ty_decl = #from_account_info_unchecked;
                     if #if_needed {
