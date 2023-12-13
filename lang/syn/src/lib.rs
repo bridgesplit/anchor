@@ -672,6 +672,7 @@ pub enum ConstraintToken {
     MintFreezeAuthority(Context<ConstraintMintFreezeAuthority>),
     MintDecimals(Context<ConstraintMintDecimals>),
     MintConfidentialTransferData(Context<ConstraintMintConfidentialTransferData>),
+    MintMetadataPointerData(Context<ConstraintMintMetadataPointerData>),
     MintTokenProgram(Context<ConstraintTokenProgram>),
     Bump(Context<ConstraintTokenBump>),
     ProgramSeed(Context<ConstraintProgramSeed>),
@@ -821,6 +822,7 @@ pub enum InitKind {
         decimals: Expr,
         token_program: Option<Expr>,
         confidential_transfer_data: Option<Expr>,
+        metadata_pointer_data: Option<Expr>,
     },
 }
 
@@ -837,6 +839,11 @@ pub struct ConstraintTokenMint {
 #[derive(Debug, Clone)]
 pub struct ConstraintMintConfidentialTransferData {
     pub confidential_transfer_data: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintMetadataPointerData {
+    pub metadata_pointer_data: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -895,6 +902,7 @@ pub struct ConstraintTokenMintGroup {
     pub freeze_authority: Option<Expr>,
     pub token_program: Option<Expr>,
     pub confidential_transfer_data: Option<Expr>,
+    pub metadata_pointer_data: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

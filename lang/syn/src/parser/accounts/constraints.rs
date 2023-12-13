@@ -97,7 +97,15 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                             confidential_transfer_data: stream.parse()?,
                         },
                     ))
-                }
+                },
+                "metadata_pointer_data" => {
+                    ConstraintToken::MintMetadataPointerData(Context::new(
+                        span,
+                        ConstraintMintMetadataPointerData {
+                            metadata_pointer_data: stream.parse()?,
+                        },
+                    ))
+                },
                 _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
             }
         }
@@ -367,6 +375,7 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub mint_decimals: Option<Context<ConstraintMintDecimals>>,
     pub mint_token_program: Option<Context<ConstraintTokenProgram>>,
     pub mint_confidential_transfer_data: Option<Context<ConstraintMintConfidentialTransferData>>,
+    pub mint_metadata_pointer_data: Option<Context<ConstraintMintMetadataPointerData>>,
     pub bump: Option<Context<ConstraintTokenBump>>,
     pub program_seed: Option<Context<ConstraintProgramSeed>>,
     pub realloc: Option<Context<ConstraintRealloc>>,
@@ -403,6 +412,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_decimals: None,
             mint_token_program: None,
             mint_confidential_transfer_data: None,
+            mint_metadata_pointer_data: None,
             bump: None,
             program_seed: None,
             realloc: None,
@@ -606,6 +616,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_decimals,
             mint_token_program,
             mint_confidential_transfer_data,
+            mint_metadata_pointer_data,
             bump,
             program_seed,
             realloc,
@@ -696,8 +707,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             &mint_freeze_authority,
             &mint_token_program,
             &mint_confidential_transfer_data,
+            &mint_metadata_pointer_data,
         ) {
-            (None, None, None, None, None) => None,
+            (None, None, None, None, None, None) => None,
             _ => Some(ConstraintTokenMintGroup {
                 decimals: mint_decimals
                     .as_ref()
@@ -714,6 +726,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 confidential_transfer_data: mint_confidential_transfer_data
                     .as_ref()
                     .map(|a| a.clone().into_inner().confidential_transfer_data),
+                metadata_pointer_data: mint_metadata_pointer_data
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().metadata_pointer_data),
             }),
         };
 
@@ -754,6 +769,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                         freeze_authority: mint_freeze_authority.map(|fa| fa.into_inner().mint_freeze_auth),
                         token_program: mint_token_program.map(|tp| tp.into_inner().token_program),
                         confidential_transfer_data: mint_confidential_transfer_data.map(|ctd| ctd.into_inner().confidential_transfer_data),
+                        metadata_pointer_data: mint_metadata_pointer_data.map(|mpd| mpd.into_inner().metadata_pointer_data),
                     }
                 } else {
                     InitKind::Program {
@@ -812,7 +828,10 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::MintDecimals(c) => self.add_mint_decimals(c),
             ConstraintToken::MintConfidentialTransferData(c) => {
                 self.add_mint_confidential_transfer_data(c)
-            }
+            },
+            ConstraintToken::MintMetadataPointerData(c) => {
+                self.add_mint_metadata_pointer_data(c)
+            },
             ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
             ConstraintToken::Bump(c) => self.add_bump(c),
             ConstraintToken::ProgramSeed(c) => self.add_program_seed(c),
@@ -1150,6 +1169,20 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ));
         }
         self.mint_confidential_transfer_data.replace(c);
+        Ok(())
+    }
+
+    fn add_mint_metadata_pointer_data(
+        &mut self,
+        c: Context<ConstraintMintMetadataPointerData>,
+    ) -> ParseResult<()> {
+        if self.mint_metadata_pointer_data.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "mint metadata_pointer_data already provided",
+            ));
+        }
+        self.mint_metadata_pointer_data.replace(c);
         Ok(())
     }
 
