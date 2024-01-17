@@ -6,20 +6,20 @@ use anchor_lang::{context::CpiContext, Accounts};
 use borsh::{BorshDeserialize, BorshSerialize};
 
 #[derive(Clone, Copy, BorshDeserialize, BorshSerialize)]
-pub struct GroupMemberPointerInitializeArgs {
+pub struct GroupPointerInitializeArgs {
     pub authority: Option<Pubkey>,
-    pub member_address: Option<Pubkey>,
+    pub group_address: Option<Pubkey>,
 }
 
-pub fn group_member_pointer_initialize<'info>(
-    ctx: CpiContext<'_, '_, '_, 'info, GroupMemberPointerInitialize<'info>>,
-    args: GroupMemberPointerInitializeArgs,
+pub fn group_pointer_initialize<'info>(
+    ctx: CpiContext<'_, '_, '_, 'info, GroupPointerInitialize<'info>>,
+    args: GroupPointerInitializeArgs,
 ) -> Result<()> {
-    let ix = spl_token_2022::extension::group_member_pointer::instruction::initialize(
+    let ix = spl_token_2022::extension::group_pointer::instruction::initialize(
         ctx.accounts.token_program_id.key,
         ctx.accounts.mint.key,
         args.authority,
-        args.member_address,
+        args.group_address,
     )?;
     solana_program::program::invoke_signed(
         &ix,
@@ -30,7 +30,7 @@ pub fn group_member_pointer_initialize<'info>(
 }
 
 #[derive(Accounts)]
-pub struct GroupMemberPointerInitialize<'info> {
+pub struct GroupPointerInitialize<'info> {
     pub token_program_id: AccountInfo<'info>,
     pub mint: AccountInfo<'info>,
 }

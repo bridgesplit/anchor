@@ -673,6 +673,8 @@ pub enum ConstraintToken {
     MintDecimals(Context<ConstraintMintDecimals>),
     MintConfidentialTransferData(Context<ConstraintMintConfidentialTransferData>),
     MintMetadataPointerData(Context<ConstraintMintMetadataPointerData>),
+    MintGroupPointerData(Context<ConstraintMintGroupPointerData>),
+    MintGroupMemberPointerData(Context<ConstraintMintGroupMemberPointerData>),
     MintTokenProgram(Context<ConstraintTokenProgram>),
     Bump(Context<ConstraintTokenBump>),
     ProgramSeed(Context<ConstraintProgramSeed>),
@@ -823,6 +825,8 @@ pub enum InitKind {
         token_program: Option<Expr>,
         confidential_transfer_data: Option<Expr>,
         metadata_pointer_data: Option<Expr>,
+        group_pointer_data: Option<Expr>,
+        group_member_pointer_data: Option<Expr>,
     },
 }
 
@@ -844,6 +848,16 @@ pub struct ConstraintMintConfidentialTransferData {
 #[derive(Debug, Clone)]
 pub struct ConstraintMintMetadataPointerData {
     pub metadata_pointer_data: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintGroupPointerData {
+    pub group_pointer_data: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintGroupMemberPointerData {
+    pub group_member_pointer_data: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -903,6 +917,8 @@ pub struct ConstraintTokenMintGroup {
     pub token_program: Option<Expr>,
     pub confidential_transfer_data: Option<Expr>,
     pub metadata_pointer_data: Option<Expr>,
+    pub group_pointer_data: Option<Expr>,
+    pub group_member_pointer_data: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.
