@@ -672,6 +672,9 @@ pub enum ConstraintToken {
     MintFreezeAuthority(Context<ConstraintMintFreezeAuthority>),
     MintDecimals(Context<ConstraintMintDecimals>),
     MintConfidentialTransferData(Context<ConstraintMintConfidentialTransferData>),
+    MintMetadata(Context<ConstraintMintMetadata>),
+    MintTokenGroupData(Context<ConstraintMintTokenGroupData>),
+    MintTokenGroupMemberData(Context<ConstraintMintTokenGroupMemberData>),
     MintMetadataPointerData(Context<ConstraintMintMetadataPointerData>),
     MintGroupPointerData(Context<ConstraintMintGroupPointerData>),
     MintGroupMemberPointerData(Context<ConstraintMintGroupMemberPointerData>),
@@ -823,6 +826,9 @@ pub enum InitKind {
         freeze_authority: Option<Expr>,
         decimals: Expr,
         token_program: Option<Expr>,
+        token_metadata: Option<Expr>,
+        token_group_data: Option<Expr>,
+        token_group_member_data: Option<Expr>,
         confidential_transfer_data: Option<Expr>,
         metadata_pointer_data: Option<Expr>,
         group_pointer_data: Option<Expr>,
@@ -846,9 +852,25 @@ pub struct ConstraintMintConfidentialTransferData {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConstraintMintMetadata {
+    pub token_metadata: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintTokenGroupData {
+    pub token_group_data: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintTokenGroupMemberData {
+    pub token_group_member_data: Expr,
+}
+
+#[derive(Debug, Clone)]
 pub struct ConstraintMintMetadataPointerData {
     pub metadata_pointer_data: Expr,
 }
+
 
 #[derive(Debug, Clone)]
 pub struct ConstraintMintGroupPointerData {
@@ -916,6 +938,9 @@ pub struct ConstraintTokenMintGroup {
     pub freeze_authority: Option<Expr>,
     pub token_program: Option<Expr>,
     pub confidential_transfer_data: Option<Expr>,
+    pub token_metadata: Option<Expr>,
+    pub token_group_data: Option<Expr>,
+    pub token_group_member_data: Option<Expr>,
     pub metadata_pointer_data: Option<Expr>,
     pub group_pointer_data: Option<Expr>,
     pub group_member_pointer_data: Option<Expr>,
