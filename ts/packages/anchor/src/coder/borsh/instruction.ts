@@ -17,6 +17,7 @@ import {
   IdlTypeOption,
   IdlTypeDefined,
   IdlAccounts,
+  IdlEnumFieldsNamed,
 } from "../../idl.js";
 import { IdlCoder } from "./idl.js";
 import { InstructionCoder } from "../index.js";
@@ -56,11 +57,15 @@ export class BorshInstructionCoder implements InstructionCoder {
   /**
    * Encodes a program instruction.
    */
-  public encode(ixName: string, ix: any): Buffer {
-    return this._encode(SIGHASH_GLOBAL_NAMESPACE, ixName, ix);
+  public encode(ixName: string, ix: any, discriminator?: Buffer): Buffer {
+    return this._encode(
+      ixName,
+      ix,
+      discriminator ?? sighash(SIGHASH_GLOBAL_NAMESPACE, ixName)
+    );
   }
 
-  private _encode(nameSpace: string, ixName: string, ix: any): Buffer {
+  private _encode(ixName: string, ix: any, discriminator: Buffer): Buffer {
     const buffer = Buffer.alloc(1000); // TODO: use a tighter buffer.
     const methodName = camelCase(ixName);
     const layout = this.ixLayout.get(methodName);
@@ -69,7 +74,7 @@ export class BorshInstructionCoder implements InstructionCoder {
     }
     const len = layout.encode(ix, buffer);
     const data = buffer.slice(0, len);
-    return Buffer.concat([sighash(nameSpace, ixName), data]);
+    return Buffer.concat([discriminator, data]);
   }
 
   private static parseIxLayout(idl: Idl): Map<string, Layout> {
@@ -92,14 +97,21 @@ export class BorshInstructionCoder implements InstructionCoder {
    */
   public decode(
     ix: Buffer | string,
-    encoding: "hex" | "base58" = "hex"
+    encoding: "hex" | "base58" = "hex",
+    ixName?: string
   ): Instruction | null {
     if (typeof ix === "string") {
       ix = encoding === "hex" ? Buffer.from(ix, "hex") : bs58.decode(ix);
     }
-    let sighash = bs58.encode(ix.slice(0, 8));
+    // Use the provided method name to get the sighash, ignoring the
+    // discriminator in the instruction data.
+    // This is useful for decoding instructions that have been encoded with a
+    // different namespace, such as an SPL interface.
+    let sighashKey = bs58.encode(
+      ixName ? sighash(SIGHASH_GLOBAL_NAMESPACE, ixName) : ix.slice(0, 8)
+    );
     let data = ix.slice(8);
-    const decoder = this.sighashLayouts.get(sighash);
+    const decoder = this.sighashLayouts.get(sighashKey);
     if (!decoder) {
       return null;
     }
@@ -221,7 +233,8 @@ class InstructionFormatter {
           .map((d: IdlField) =>
             this.formatIdlData(
               { name: "", type: (<IdlTypeVec>idlField.type).vec },
-              d
+              d,
+              types
             )
           )
           .join(", ") +
@@ -292,15 +305,21 @@ class InstructionFormatter {
           const variants = typeDef.type.variants;
           const variant = Object.keys(data)[0];
           const enumType = data[variant];
+          const enumVariant = variants.find(
+            (v) => camelCase(v.name) === variant
+          );
+          if (!enumVariant) {
+            throw new Error(`Unable to find variant \`${variant}\``);
+          }
+          const fields = enumVariant.fields as IdlEnumFieldsNamed;
           const namedFields = Object.keys(enumType)
             .map((f) => {
               const fieldData = enumType[f];
-              const idlField = variants[variant]?.find(
-                (v: IdlField) => v.name === f
-              );
+              const idlField = fields.find((v) => v.name === f);
               if (!idlField) {
-                throw new Error("Unable to find variant");
+                throw new Error(`Unable to find field \`${f}\``);
               }
+
               return (
                 f +
                 ": " +

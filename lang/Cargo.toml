@@ -8,6 +8,10 @@ edition = "2021"
 license = "Apache-2.0"
 description = "Solana Sealevel eDSL"
 
+[package.metadata.docs.rs]
+all-features = true
+rustdoc-args = ["--cfg", "docsrs"]
+
 [features]
 allow-missing-optionals = ["anchor-derive-accounts/allow-missing-optionals"]
 anchor-debug = [
@@ -32,6 +36,7 @@ idl-build = [
     "anchor-syn/idl-build",
 ]
 init-if-needed = ["anchor-derive-accounts/init-if-needed"]
+interface-instructions = ["anchor-attribute-program/interface-instructions"]
 
 [dependencies]
 anchor-attribute-access-control = { path = "./attribute/access-control", version = "0.29.0" }
@@ -57,3 +62,6 @@ thiserror = "1"
 
 # TODO: Remove. This crate has been added to fix a build error with the 1.16.0 release.
 getrandom = { version = "0.2", features = ["custom"] }
+
+# TODO: Remove once https://github.com/solana-labs/solana/issues/33504 is resolved.
+ahash = "=0.8.6"

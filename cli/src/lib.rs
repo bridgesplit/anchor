@@ -11,7 +11,7 @@ use anchor_syn::idl::types::{
     IdlTypeDefinitionTy,
 };
 use anyhow::{anyhow, Context, Result};
-use checks::check_overflow;
+use checks::{check_anchor_version, check_overflow};
 use clap::Parser;
 use dirs::home_dir;
 use flate2::read::GzDecoder;
@@ -375,6 +375,9 @@ pub enum IdlCommand {
     },
     Close {
         program_id: Pubkey,
+        /// The IDL account to close. If none is given, then the IDL account derived from program_id is used.
+        #[clap(long)]
+        idl_address: Option<Pubkey>,
         /// When used, the content of the instruction will only be printed in base64 form and not executed.
         /// Useful for multisig execution when the local wallet keypair is not available.
         #[clap(long)]
@@ -495,21 +498,28 @@ fn override_toolchain(cfg_override: &ConfigOverride) -> Result<RestoreToolchainC
 
     let cfg = Config::discover(cfg_override)?;
     if let Some(cfg) = cfg {
-        fn get_current_version(cmd_name: &str) -> Result<String> {
-            let output = std::process::Command::new(cmd_name)
-                .arg("--version")
-                .output()?;
-            let output_version = std::str::from_utf8(&output.stdout)?;
-            let version = Regex::new(r"(\d+\.\d+\.\S+)")
+        fn parse_version(text: &str) -> String {
+            Regex::new(r"(\d+\.\d+\.\S+)")
                 .unwrap()
-                .captures_iter(output_version)
+                .captures_iter(text)
                 .next()
                 .unwrap()
                 .get(0)
                 .unwrap()
                 .as_str()
-                .to_string();
+                .to_string()
+        }
 
+        fn get_current_version(cmd_name: &str) -> Result<String> {
+            let output = std::process::Command::new(cmd_name)
+                .arg("--version")
+                .output()?;
+            if !output.status.success() {
+                return Err(anyhow!("Failed to run `{cmd_name} --version`"));
+            }
+
+            let output_version = std::str::from_utf8(&output.stdout)?;
+            let version = parse_version(output_version);
             Ok(version)
         }
 
@@ -519,15 +529,33 @@ fn override_toolchain(cfg_override: &ConfigOverride) -> Result<RestoreToolchainC
                 // We are overriding with `solana-install` command instead of using the binaries
                 // from `~/.local/share/solana/install/releases` because we use multiple Solana
                 // binaries in various commands.
-                fn override_solana_version(version: String) -> std::io::Result<bool> {
+                fn override_solana_version(version: String) -> Result<bool> {
+                    let output = std::process::Command::new("solana-install")
+                        .arg("list")
+                        .output()?;
+                    if !output.status.success() {
+                        return Err(anyhow!("Failed to list installed `solana` versions"));
+                    }
+
+                    // Hide the installation progress if the version is already installed
+                    let is_installed = std::str::from_utf8(&output.stdout)?
+                        .lines()
+                        .any(|line| parse_version(line) == version);
+                    let (stderr, stdout) = if is_installed {
+                        (Stdio::null(), Stdio::null())
+                    } else {
+                        (Stdio::inherit(), Stdio::inherit())
+                    };
+
                     std::process::Command::new("solana-install")
                         .arg("init")
                         .arg(&version)
-                        .stderr(Stdio::null())
-                        .stdout(Stdio::null())
+                        .stderr(stderr)
+                        .stdout(stdout)
                         .spawn()?
                         .wait()
                         .map(|status| status.success())
+                        .map_err(|err| anyhow!("Failed to run `solana-install` command: {err}"))
                 }
 
                 match override_solana_version(solana_version.to_owned())? {
@@ -537,12 +565,10 @@ fn override_toolchain(cfg_override: &ConfigOverride) -> Result<RestoreToolchainC
                             false => Err(anyhow!("Failed to restore `solana` version")),
                         }
                     })),
-                    false => {
-                        eprintln!(
-                            "Failed to override `solana` version to {solana_version}, \
+                    false => eprintln!(
+                        "Failed to override `solana` version to {solana_version}, \
                         using {current_version} instead"
-                        );
-                    }
+                    ),
                 }
             }
         }
@@ -1193,6 +1219,9 @@ pub fn build(
     if workspace_cargo_toml_path.exists() {
         check_overflow(workspace_cargo_toml_path)?;
     }
+
+    // Check whether there is a mismatch between CLI and lang crate versions
+    check_anchor_version(&cfg).ok();
 
     let idl_out = match idl {
         Some(idl) => Some(PathBuf::from(idl)),
@@ -2037,17 +2066,28 @@ fn idl(cfg_override: &ConfigOverride, subcmd: IdlCommand) -> Result<()> {
         } => idl_init(cfg_override, program_id, filepath),
         IdlCommand::Close {
             program_id,
+            idl_address,
             print_only,
-        } => idl_close(cfg_override, program_id, print_only),
+        } => {
+            let closed_address = idl_close(cfg_override, program_id, idl_address, print_only)?;
+            if !print_only {
+                println!("Idl account closed: {closed_address}");
+            }
+            Ok(())
+        }
         IdlCommand::WriteBuffer {
             program_id,
             filepath,
-        } => idl_write_buffer(cfg_override, program_id, filepath).map(|_| ()),
+        } => {
+            let idl_buffer = idl_write_buffer(cfg_override, program_id, filepath)?;
+            println!("Idl buffer created: {idl_buffer}");
+            Ok(())
+        }
         IdlCommand::SetBuffer {
             program_id,
             buffer,
             print_only,
-        } => idl_set_buffer(cfg_override, program_id, buffer, print_only),
+        } => idl_set_buffer(cfg_override, program_id, buffer, print_only).map(|_| ()),
         IdlCommand::Upgrade {
             program_id,
             filepath,
@@ -2132,16 +2172,17 @@ fn idl_init(cfg_override: &ConfigOverride, program_id: Pubkey, idl_filepath: Str
     })
 }
 
-fn idl_close(cfg_override: &ConfigOverride, program_id: Pubkey, print_only: bool) -> Result<()> {
+fn idl_close(
+    cfg_override: &ConfigOverride,
+    program_id: Pubkey,
+    idl_address: Option<Pubkey>,
+    print_only: bool,
+) -> Result<Pubkey> {
     with_workspace(cfg_override, |cfg| {
-        let idl_address = IdlAccount::address(&program_id);
+        let idl_address = idl_address.unwrap_or_else(|| IdlAccount::address(&program_id));
         idl_close_account(cfg, &program_id, idl_address, print_only)?;
 
-        if !print_only {
-            println!("Idl account closed: {idl_address:?}");
-        }
-
-        Ok(())
+        Ok(idl_address)
     })
 }
 
@@ -2159,8 +2200,6 @@ fn idl_write_buffer(
         let idl_buffer = create_idl_buffer(cfg, &keypair, &program_id, &idl)?;
         idl_write(cfg, &program_id, &idl, idl_buffer)?;
 
-        println!("Idl buffer created: {idl_buffer:?}");
-
         Ok(idl_buffer)
     })
 }
@@ -2170,7 +2209,7 @@ fn idl_set_buffer(
     program_id: Pubkey,
     buffer: Pubkey,
     print_only: bool,
-) -> Result<()> {
+) -> Result<Pubkey> {
     with_workspace(cfg_override, |cfg| {
         let keypair = solana_sdk::signature::read_keypair_file(&cfg.provider.wallet.to_string())
             .map_err(|_| anyhow!("Unable to read keypair file"))?;
@@ -2215,7 +2254,7 @@ fn idl_set_buffer(
             client.send_and_confirm_transaction_with_spinner(&tx)?;
         }
 
-        Ok(())
+        Ok(idl_address)
     })
 }
 
@@ -2224,8 +2263,11 @@ fn idl_upgrade(
     program_id: Pubkey,
     idl_filepath: String,
 ) -> Result<()> {
-    let buffer = idl_write_buffer(cfg_override, program_id, idl_filepath)?;
-    idl_set_buffer(cfg_override, program_id, buffer, false)
+    let buffer_address = idl_write_buffer(cfg_override, program_id, idl_filepath)?;
+    let idl_address = idl_set_buffer(cfg_override, program_id, buffer_address, false)?;
+    idl_close(cfg_override, program_id, Some(buffer_address), false)?;
+    println!("Idl account {idl_address} successfully upgraded");
+    Ok(())
 }
 
 fn idl_authority(cfg_override: &ConfigOverride, program_id: Pubkey) -> Result<()> {
@@ -3514,7 +3556,7 @@ fn test_validator_rpc_url(test_validator: &Option<TestValidator>) -> String {
             validator: Some(validator),
             ..
         }) => format!("http://{}:{}", validator.bind_address, validator.rpc_port),
-        _ => "http://localhost:8899".to_string(),
+        _ => "http://127.0.0.1:8899".to_string(),
     }
 }
 
@@ -3844,8 +3886,9 @@ fn serialize_idl(idl: &Idl) -> Result<Vec<u8>> {
 }
 
 fn serialize_idl_ix(ix_inner: anchor_lang::idl::IdlInstruction) -> Result<Vec<u8>> {
-    let mut data = anchor_lang::idl::IDL_IX_TAG.to_le_bytes().to_vec();
-    data.append(&mut ix_inner.try_to_vec()?);
+    let mut data = Vec::with_capacity(256);
+    data.extend_from_slice(&anchor_lang::idl::IDL_IX_TAG.to_le_bytes());
+    ix_inner.serialize(&mut data)?;
     Ok(data)
 }
 
@@ -3855,9 +3898,10 @@ fn migrate(cfg_override: &ConfigOverride) -> Result<()> {
 
         let url = cluster_url(cfg, &cfg.test_validator);
         let cur_dir = std::env::current_dir()?;
+        let migrations_dir = cur_dir.join("migrations");
+        let deploy_ts = Path::new("deploy.ts");
 
-        let use_ts =
-            Path::new("tsconfig.json").exists() && Path::new("migrations/deploy.ts").exists();
+        let use_ts = Path::new("tsconfig.json").exists() && migrations_dir.join(deploy_ts).exists();
 
         if !Path::new(".anchor").exists() {
             fs::create_dir(".anchor")?;
@@ -3865,23 +3909,30 @@ fn migrate(cfg_override: &ConfigOverride) -> Result<()> {
         std::env::set_current_dir(".anchor")?;
 
         let exit = if use_ts {
-            let module_path = cur_dir.join("migrations/deploy.ts");
+            let module_path = migrations_dir.join(deploy_ts);
             let deploy_script_host_str =
                 rust_template::deploy_ts_script_host(&url, &module_path.display().to_string());
-            fs::write("deploy.ts", deploy_script_host_str)?;
-            std::process::Command::new("ts-node")
-                .arg("deploy.ts")
+            fs::write(deploy_ts, deploy_script_host_str)?;
+
+            std::process::Command::new("yarn")
+                .args([
+                    "run",
+                    "ts-node",
+                    &fs::canonicalize(deploy_ts)?.to_string_lossy(),
+                ])
                 .env("ANCHOR_WALLET", cfg.provider.wallet.to_string())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
                 .output()?
         } else {
-            let module_path = cur_dir.join("migrations/deploy.js");
+            let deploy_js = deploy_ts.with_extension("js");
+            let module_path = migrations_dir.join(&deploy_js);
             let deploy_script_host_str =
                 rust_template::deploy_js_script_host(&url, &module_path.display().to_string());
-            fs::write("deploy.js", deploy_script_host_str)?;
+            fs::write(&deploy_js, deploy_script_host_str)?;
+
             std::process::Command::new("node")
-                .arg("deploy.js")
+                .arg(&deploy_js)
                 .env("ANCHOR_WALLET", cfg.provider.wallet.to_string())
                 .stdout(Stdio::inherit())
                 .stderr(Stdio::inherit())
@@ -3889,7 +3940,7 @@ fn migrate(cfg_override: &ConfigOverride) -> Result<()> {
         };
 
         if !exit.status.success() {
-            println!("Deploy failed.");
+            eprintln!("Deploy failed.");
             std::process::exit(exit.status.code().unwrap());
         }
 

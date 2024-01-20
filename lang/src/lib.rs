@@ -1,3 +1,5 @@
+#![cfg_attr(docsrs, feature(doc_auto_cfg))]
+
 //! Anchor ⚓ is a framework for Solana's Sealevel runtime providing several
 //! convenient developer tools.
 //!
@@ -64,6 +66,9 @@ pub use anchor_attribute_event::{emit_cpi, event_cpi};
 
 #[cfg(feature = "idl-build")]
 pub use anchor_syn::{self, idl::build::IdlBuild};
+
+#[cfg(feature = "interface-instructions")]
+pub use anchor_attribute_program::interface;
 
 pub type Result<T> = std::result::Result<T, error::Error>;
 
@@ -266,9 +271,20 @@ pub trait ZeroCopy: Discriminator + Copy + Clone + Zeroable + Pod {}
 /// to an instruction.
 pub trait InstructionData: Discriminator + AnchorSerialize {
     fn data(&self) -> Vec<u8> {
-        let mut d = Self::discriminator().to_vec();
-        d.append(&mut self.try_to_vec().expect("Should always serialize"));
-        d
+        let mut data = Vec::with_capacity(256);
+        data.extend_from_slice(&Self::discriminator());
+        self.serialize(&mut data).unwrap();
+        data
+    }
+
+    /// Clears `data` and writes instruction data to it.
+    ///
+    /// We use a `Vec<u8>`` here because of the additional flexibility of re-allocation (only if
+    /// necessary), and because the data field in `Instruction` expects a `Vec<u8>`.
+    fn write_to(&self, mut data: &mut Vec<u8>) {
+        data.clear();
+        data.extend_from_slice(&Self::DISCRIMINATOR);
+        self.serialize(&mut data).unwrap()
     }
 }
 
@@ -407,14 +423,14 @@ pub mod prelude {
 
     #[cfg(feature = "idl-build")]
     pub use super::IdlBuild;
+
+    #[cfg(feature = "interface-instructions")]
+    pub use super::interface;
 }
 
 /// Internal module used by macros and unstable apis.
 #[doc(hidden)]
 pub mod __private {
-    /// The discriminator anchor uses to mark an account as closed.
-    pub const CLOSED_ACCOUNT_DISCRIMINATOR: [u8; 8] = [255, 255, 255, 255, 255, 255, 255, 255];
-
     pub use anchor_attribute_account::ZeroCopyAccessor;
 
     pub use anchor_attribute_event::EventIndex;
