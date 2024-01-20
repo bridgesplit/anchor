@@ -90,6 +90,12 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                         token_program: stream.parse()?,
                     },
                 )),
+                "extensions" => ConstraintToken::MintExtensions(Context::new(
+                    span,
+                    ConstraintMintExtensions {
+                        extensions: stream.parse()?,
+                    },
+                )),
                 "confidential_transfer_data" => {
                     ConstraintToken::MintConfidentialTransferData(Context::new(
                         span,
@@ -97,7 +103,7 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                             confidential_transfer_data: stream.parse()?,
                         },
                     ))
-                },
+                }
                 "token_metadata" => ConstraintToken::MintMetadataPointerData(Context::new(
                     span,
                     ConstraintMintMetadataPointerData {
@@ -117,7 +123,7 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                             group_member_pointer_data: stream.parse()?,
                         },
                     ))
-                },
+                }
                 "metadata_pointer_data" => ConstraintToken::MintMetadataPointerData(Context::new(
                     span,
                     ConstraintMintMetadataPointerData {
@@ -406,10 +412,8 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub mint_freeze_authority: Option<Context<ConstraintMintFreezeAuthority>>,
     pub mint_decimals: Option<Context<ConstraintMintDecimals>>,
     pub mint_token_program: Option<Context<ConstraintTokenProgram>>,
+    pub mint_extensions: Option<Context<ConstraintMintExtensions>>,
     pub mint_confidential_transfer_data: Option<Context<ConstraintMintConfidentialTransferData>>,
-    pub token_metadata: Option<Context<ConstraintMintMetadata>>,
-    pub token_group_data: Option<Context<ConstraintMintTokenGroupData>>,
-    pub token_group_member_data: Option<Context<ConstraintMintTokenGroupMemberData>>,
     pub mint_metadata_pointer_data: Option<Context<ConstraintMintMetadataPointerData>>,
     pub mint_group_pointer_data: Option<Context<ConstraintMintGroupPointerData>>,
     pub mint_group_member_pointer_data: Option<Context<ConstraintMintGroupMemberPointerData>>,
@@ -448,10 +452,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_freeze_authority: None,
             mint_decimals: None,
             mint_token_program: None,
+            mint_extensions: None,
             mint_confidential_transfer_data: None,
-            token_metadata: None,
-            token_group_data: None,
-            token_group_member_data: None,
             mint_metadata_pointer_data: None,
             mint_group_pointer_data: None,
             mint_group_member_pointer_data: None,
@@ -657,10 +659,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_freeze_authority,
             mint_decimals,
             mint_token_program,
+            mint_extensions,
             mint_confidential_transfer_data,
-            token_metadata,
-            token_group_data,
-            token_group_member_data,
             mint_metadata_pointer_data,
             mint_group_pointer_data,
             mint_group_member_pointer_data,
@@ -753,15 +753,13 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             &mint_authority,
             &mint_freeze_authority,
             &mint_token_program,
+            &mint_extensions,
             &mint_confidential_transfer_data,
-            &token_metadata,
-            &token_group_data,
-            &token_group_member_data,
             &mint_metadata_pointer_data,
             &mint_group_pointer_data,
             &mint_group_member_pointer_data,
         ) {
-            (None, None, None, None, None, None, None, None, None, None, None) => None,
+            (None, None, None, None, None, None, None, None, None) => None,
             _ => Some(ConstraintTokenMintGroup {
                 decimals: mint_decimals
                     .as_ref()
@@ -775,18 +773,14 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 token_program: mint_token_program
                     .as_ref()
                     .map(|a| a.clone().into_inner().token_program),
-                confidential_transfer_data: mint_confidential_transfer_data
+                confidential_transfer_data: mint_confidential_transfer_data.as_ref().map(
+                    |a: &Context<ConstraintMintConfidentialTransferData>| {
+                        a.clone().into_inner().confidential_transfer_data
+                    },
+                ),
+                extensions: mint_extensions
                     .as_ref()
-                    .map(|a| a.clone().into_inner().confidential_transfer_data),
-                token_metadata: token_metadata
-                    .as_ref()
-                    .map(|a| a.clone().into_inner().token_metadata),
-                token_group_data: token_group_data
-                    .as_ref()
-                    .map(|a| a.clone().into_inner().token_group_data),
-                token_group_member_data: token_group_member_data
-                    .as_ref()
-                    .map(|a| a.clone().into_inner().token_group_member_data),
+                    .map(|a| a.clone().into_inner().extensions),
                 metadata_pointer_data: mint_metadata_pointer_data
                     .as_ref()
                     .map(|a| a.clone().into_inner().metadata_pointer_data),
@@ -835,10 +829,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                         },
                         freeze_authority: mint_freeze_authority.map(|fa| fa.into_inner().mint_freeze_auth),
                         token_program: mint_token_program.map(|tp| tp.into_inner().token_program),
+                        extensions: mint_extensions.map(|me| me.into_inner().extensions),
                         confidential_transfer_data: mint_confidential_transfer_data.map(|ctd| ctd.into_inner().confidential_transfer_data),
-                        token_metadata: token_metadata.map(|tmd| tmd.into_inner().token_metadata),
-                        token_group_data: token_group_data.map(|tgd| tgd.into_inner().token_group_data),
-                        token_group_member_data: token_group_member_data.map(|tgmd| tgmd.into_inner().token_group_member_data),
                         metadata_pointer_data: mint_metadata_pointer_data.map(|mpd| mpd.into_inner().metadata_pointer_data),
                         group_pointer_data: mint_group_pointer_data.map(|gpd| gpd.into_inner().group_pointer_data),
                         group_member_pointer_data: mint_group_member_pointer_data.map(|gmpd| gmpd.into_inner().group_member_pointer_data),
@@ -901,9 +893,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::MintConfidentialTransferData(c) => {
                 self.add_mint_confidential_transfer_data(c)
             }
-            ConstraintToken::MintMetadata(c) => self.add_mint_metadata(c),
-            ConstraintToken::MintTokenGroupData(c) => self.add_mint_token_group_data(c),
-            ConstraintToken::MintTokenGroupMemberData(c) => self.add_mint_token_group_member_data(c),
+            ConstraintToken::MintExtensions(c) => self.add_mint_extensions(c),
             ConstraintToken::MintMetadataPointerData(c) => self.add_mint_metadata_pointer_data(c),
             ConstraintToken::MintGroupPointerData(c) => self.add_mint_group_pointer_data(c),
             ConstraintToken::MintGroupMemberPointerData(c) => {
@@ -1249,42 +1239,11 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
         Ok(())
     }
 
-    fn add_token_metadata(
-        &mut self,
-        c: Context<ConstraintMintMetadata>,
-    ) -> ParseResult<()> {
-        if self.token_metadata.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint metadata already provided",
-            ));
+    fn add_mint_extensions(&mut self, c: Context<ConstraintMintExtensions>) -> ParseResult<()> {
+        if self.mint_extensions.is_some() {
+            return Err(ParseError::new(c.span(), "mint metadata already provided"));
         }
-        self.token_metadata.replace(c);
-        Ok(())
-    }
-
-    fn add_token_group_data(&mut self, c: Context<ConstraintMintTokenGroupData>) -> ParseResult<()> {
-        if self.token_group_data.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint group_data already provided",
-            ));
-        }
-        self.token_group_data.replace(c);
-        Ok(())
-    }
-
-    fn add_token_group_member_data(
-        &mut self,
-        c: Context<ConstraintMintTokenGroupMemberData>,
-    ) -> ParseResult<()> {
-        if self.token_group_member_data.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint group_member_data already provided",
-            ));
-        }
-        self.token_group_member_data.replace(c);
+        self.mint_extensions.replace(c);
         Ok(())
     }
 
@@ -1299,45 +1258,6 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ));
         }
         self.mint_metadata_pointer_data.replace(c);
-        Ok(())
-    }
-
-    fn add_mint_metadata(&mut self, c: Context<ConstraintMintMetadata>) -> ParseResult<()> {
-        if self.token_metadata.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint metadata already provided",
-            ));
-        }
-        self.token_metadata.replace(c);
-        Ok(())
-    }
-
-    fn add_mint_token_group_data(
-        &mut self,
-        c: Context<ConstraintMintTokenGroupData>,
-    ) -> ParseResult<()> {
-        if self.token_group_data.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint group_data already provided",
-            ));
-        }
-        self.token_group_data.replace(c);
-        Ok(())
-    }
-
-    fn add_mint_token_group_member_data(
-        &mut self,
-        c: Context<ConstraintMintTokenGroupMemberData>,
-    ) -> ParseResult<()> {
-        if self.token_group_member_data.is_some() {
-            return Err(ParseError::new(
-                c.span(),
-                "mint group_member_data already provided",
-            ));
-        }
-        self.token_group_member_data.replace(c);
         Ok(())
     }
 
