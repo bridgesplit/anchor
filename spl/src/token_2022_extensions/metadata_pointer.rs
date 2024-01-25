@@ -11,7 +11,6 @@ pub struct MetadataPointerInitializeArgs {
     pub metadata_address: Option<Pubkey>,
 }
 
-
 pub fn metadata_pointer_initialize<'info>(
     ctx: CpiContext<'_, '_, '_, 'info, MetadataPointerInitialize<'info>>,
     args: MetadataPointerInitializeArgs,
