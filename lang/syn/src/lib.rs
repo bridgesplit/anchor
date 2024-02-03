@@ -680,6 +680,7 @@ pub enum ConstraintToken {
     MintMetadataPointerData(Context<ConstraintMintMetadataPointerData>),
     MintGroupPointerData(Context<ConstraintMintGroupPointerData>),
     MintGroupMemberPointerData(Context<ConstraintMintGroupMemberPointerData>),
+    MintTransferHookData(Context<ConstraintMintTransferHookData>),
     MintTokenProgram(Context<ConstraintTokenProgram>),
     Bump(Context<ConstraintTokenBump>),
     ProgramSeed(Context<ConstraintProgramSeed>),
@@ -833,6 +834,7 @@ pub enum InitKind {
         metadata_pointer_data: Option<Expr>,
         group_pointer_data: Option<Expr>,
         group_member_pointer_data: Option<Expr>,
+        transfer_hook_data: Option<Expr>,
     },
 }
 
@@ -887,6 +889,11 @@ pub struct ConstraintMintGroupMemberPointerData {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConstraintMintTransferHookData {
+    pub transfer_hook_data: Expr,
+}
+
+#[derive(Debug, Clone)]
 pub struct ConstraintTokenAuthority {
     pub auth: Expr,
 }
@@ -935,6 +942,7 @@ pub struct ConstraintTokenAccountGroup {
     pub token_program: Option<Expr>,
 }
 
+
 #[derive(Debug, Clone)]
 pub struct ConstraintTokenMintGroup {
     pub decimals: Option<Expr>,
@@ -946,6 +954,7 @@ pub struct ConstraintTokenMintGroup {
     pub metadata_pointer_data: Option<Expr>,
     pub group_pointer_data: Option<Expr>,
     pub group_member_pointer_data: Option<Expr>,
+    pub transfer_hook_data: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

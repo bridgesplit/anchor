@@ -667,6 +667,7 @@ fn generate_constraint_init_group(
             metadata_pointer_data,
             group_pointer_data,
             group_member_pointer_data,
+            transfer_hook_data,
         } => {
             let token_program = match token_program {
                 Some(t) => t.to_token_stream(),
@@ -702,6 +703,11 @@ fn generate_constraint_init_group(
                 None => quote! {},
             };
 
+            let transfer_hook_data_check = match transfer_hook_data {
+                Some(fa) => check_scope.generate_check(fa),
+                None => quote! {},
+            };
+
             let system_program_optional_check = check_scope.generate_check(system_program);
             let token_program_optional_check = check_scope.generate_check(&token_program);
             let rent_optional_check = check_scope.generate_check(rent);
@@ -717,6 +723,7 @@ fn generate_constraint_init_group(
                 #metadata_pointer_data_check
                 #group_pointer_data_check
                 #group_member_pointer_data_check
+                #transfer_hook_data_check
             };
 
             let payer_optional_check = check_scope.generate_check(payer);
@@ -772,6 +779,15 @@ fn generate_constraint_init_group(
                 }
             };
 
+            let transfer_hook_data = match transfer_hook_data {
+                Some(fa) => {
+                    quote! { Option::<&::anchor_spl::token_interface::TransferHookInitializeArgs>::Some(&#fa) }
+                }
+                None => {
+                    quote! { Option::<&::anchor_spl::token_interface::TransferHookInitializeArgs>::None }
+                }
+            };
+
             let create_account = generate_create_account(
                 field,
                 quote! {::anchor_spl::token_interface::find_mint_account_size(#extensions_data)?},
@@ -797,17 +813,17 @@ fn generate_constraint_init_group(
                         #create_account
                     }
 
-                    #[cfg(not(target_os = "solana"))]
-                    if #confidential_transfer_data.is_some() {
-                        let cpi_program = #token_program.to_account_info();
-                        let accounts = ::anchor_spl::token_interface::ConfidentialTransferIntializeMint {
-                            token_program_id: #token_program.to_account_info(),
-                            mint: #field.to_account_info(),
-                        };
-                        let c = #confidential_transfer_data.unwrap().clone();
-                        let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
-                        ::anchor_spl::token_interface::confidential_transfer_initialize_mint(cpi_ctx, c)?;
-                    }
+                    // #[cfg(not(target_os = "solana"))]
+                    // if #confidential_transfer_data.is_some() {
+                    //     let cpi_program = #token_program.to_account_info();
+                    //     let accounts = ::anchor_spl::token_interface::ConfidentialTransferIntializeMint {
+                    //         token_program_id: #token_program.to_account_info(),
+                    //         mint: #field.to_account_info(),
+                    //     };
+                    //     let c = #confidential_transfer_data.unwrap().clone();
+                    //     let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
+                    //     ::anchor_spl::token_interface::confidential_transfer_initialize_mint(cpi_ctx, c)?;
+                    // }
 
                     if #metadata_pointer_data.is_some() {
                         let cpi_program = #token_program.to_account_info();
@@ -840,6 +856,17 @@ fn generate_constraint_init_group(
                         let c = #group_member_pointer_data.unwrap().clone();
                         let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
                         ::anchor_spl::token_interface::group_member_pointer_initialize(cpi_ctx, c)?;
+                    }
+
+                    if #transfer_hook_data.is_some() {
+                        let cpi_program = #token_program.to_account_info();
+                        let accounts = ::anchor_spl::token_interface::TransferHookInitialize {
+                            token_program_id: #token_program.to_account_info(),
+                            mint: #field.to_account_info(),
+                        };
+                        let c = #transfer_hook_data.unwrap().clone();
+                        let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
+                        ::anchor_spl::token_interface::transfer_hook_initialize(cpi_ctx, c)?;
                     }
 
                     if !#if_needed || owner_program == &anchor_lang::solana_program::system_program::ID {

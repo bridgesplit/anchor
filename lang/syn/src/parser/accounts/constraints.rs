@@ -143,7 +143,13 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                             group_member_pointer_data: stream.parse()?,
                         },
                     ))
-                }
+                },
+                "transfer_hook_data" => ConstraintToken::MintTransferHookData(Context::new(
+                    span,
+                    ConstraintMintTransferHookData {
+                        transfer_hook_data: stream.parse()?,
+                    },
+                )),
                 _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
             }
         }
@@ -417,6 +423,7 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub mint_metadata_pointer_data: Option<Context<ConstraintMintMetadataPointerData>>,
     pub mint_group_pointer_data: Option<Context<ConstraintMintGroupPointerData>>,
     pub mint_group_member_pointer_data: Option<Context<ConstraintMintGroupMemberPointerData>>,
+    pub mint_transfer_hook_data: Option<Context<ConstraintMintTransferHookData>>,
     pub bump: Option<Context<ConstraintTokenBump>>,
     pub program_seed: Option<Context<ConstraintProgramSeed>>,
     pub realloc: Option<Context<ConstraintRealloc>>,
@@ -457,6 +464,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_metadata_pointer_data: None,
             mint_group_pointer_data: None,
             mint_group_member_pointer_data: None,
+            mint_transfer_hook_data: None,
             bump: None,
             program_seed: None,
             realloc: None,
@@ -664,6 +672,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_metadata_pointer_data,
             mint_group_pointer_data,
             mint_group_member_pointer_data,
+            mint_transfer_hook_data,
             bump,
             program_seed,
             realloc,
@@ -758,8 +767,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             &mint_metadata_pointer_data,
             &mint_group_pointer_data,
             &mint_group_member_pointer_data,
+            &mint_transfer_hook_data,
         ) {
-            (None, None, None, None, None, None, None, None, None) => None,
+            (None, None, None, None, None, None, None, None, None, None) => None,
             _ => Some(ConstraintTokenMintGroup {
                 decimals: mint_decimals
                     .as_ref()
@@ -790,6 +800,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 group_member_pointer_data: mint_group_member_pointer_data
                     .as_ref()
                     .map(|a| a.clone().into_inner().group_member_pointer_data),
+                transfer_hook_data: mint_transfer_hook_data
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().transfer_hook_data),
             }),
         };
 
@@ -834,6 +847,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                         metadata_pointer_data: mint_metadata_pointer_data.map(|mpd| mpd.into_inner().metadata_pointer_data),
                         group_pointer_data: mint_group_pointer_data.map(|gpd| gpd.into_inner().group_pointer_data),
                         group_member_pointer_data: mint_group_member_pointer_data.map(|gmpd| gmpd.into_inner().group_member_pointer_data),
+                        transfer_hook_data: mint_transfer_hook_data.map(|thd| thd.into_inner().transfer_hook_data),
                     }
                 } else {
                     InitKind::Program {
@@ -898,7 +912,8 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::MintGroupPointerData(c) => self.add_mint_group_pointer_data(c),
             ConstraintToken::MintGroupMemberPointerData(c) => {
                 self.add_mint_group_member_pointer_data(c)
-            }
+            },
+            ConstraintToken::MintTransferHookData(c) => self.add_mint_transfer_hook_data(c),
             ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
             ConstraintToken::Bump(c) => self.add_bump(c),
             ConstraintToken::ProgramSeed(c) => self.add_program_seed(c),
@@ -1286,6 +1301,20 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ));
         }
         self.mint_group_member_pointer_data.replace(c);
+        Ok(())
+    }
+
+    fn add_mint_transfer_hook_data(
+        &mut self,
+        c: Context<ConstraintMintTransferHookData>,
+    ) -> ParseResult<()> {
+        if self.mint_transfer_hook_data.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "mint transfer_hook_data already provided",
+            ));
+        }
+        self.mint_transfer_hook_data.replace(c);
         Ok(())
     }
 

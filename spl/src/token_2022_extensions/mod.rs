@@ -19,11 +19,13 @@ pub mod group_pointer;
 pub mod metadata_pointer;
 pub mod token_group;
 pub mod token_metadata;
+pub mod transfer_hook;
 
 pub use group_member_pointer::*;
 pub use group_pointer::*;
 pub use metadata_pointer::*;
 pub use token_group::*;
 pub use token_metadata::*;
+pub use transfer_hook::*;
 
 pub use spl_token_metadata_interface;
