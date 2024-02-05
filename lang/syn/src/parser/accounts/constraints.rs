@@ -143,7 +143,7 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                             group_member_pointer_data: stream.parse()?,
                         },
                     ))
-                },
+                }
                 "transfer_hook_data" => ConstraintToken::MintTransferHookData(Context::new(
                     span,
                     ConstraintMintTransferHookData {
@@ -912,7 +912,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::MintGroupPointerData(c) => self.add_mint_group_pointer_data(c),
             ConstraintToken::MintGroupMemberPointerData(c) => {
                 self.add_mint_group_member_pointer_data(c)
-            },
+            }
             ConstraintToken::MintTransferHookData(c) => self.add_mint_transfer_hook_data(c),
             ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
             ConstraintToken::Bump(c) => self.add_bump(c),

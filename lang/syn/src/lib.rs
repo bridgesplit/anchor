@@ -942,7 +942,6 @@ pub struct ConstraintTokenAccountGroup {
     pub token_program: Option<Expr>,
 }
 
-
 #[derive(Debug, Clone)]
 pub struct ConstraintTokenMintGroup {
     pub decimals: Option<Expr>,
