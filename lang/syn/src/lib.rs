@@ -648,6 +648,10 @@ pub enum Constraint {
     Realloc(ConstraintReallocGroup),
 }
 
+pub enum ConstraintExtensions {
+    TransferHook(ConstraintTransferHookGroup),
+}
+
 // Constraint token is a single keyword in a `#[account(<TOKEN>)]` attribute.
 #[allow(clippy::large_enum_variant)]
 #[derive(Debug)]
@@ -695,6 +699,8 @@ impl Parse for ConstraintToken {
         accounts_parser::constraints::parse_token(stream)
     }
 }
+
+
 
 #[derive(Debug, Clone)]
 pub struct ConstraintInit {
@@ -835,9 +841,21 @@ pub enum InitKind {
         metadata_pointer_data: Option<Expr>,
         group_pointer_data: Option<Expr>,
         group_member_pointer_data: Option<Expr>,
-        transfer_hook_data: Option<Expr>,
+        transfer_hook_data: Option<ConstraintTransferHook>,
         close_authority: Option<Expr>,
     },
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintTransferHookGroup {
+    pub authority: Option<Expr>,
+    pub transfer_hook_program_id: Option<Expr>,
+}
+
+impl Parse for ConstraintTransferHookGroup {
+    fn parse(stream: ParseStream) -> ParseResult<Self> {
+        accounts_parser::constraints::parse_transfer_hook(stream)
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -892,7 +910,7 @@ pub struct ConstraintMintGroupMemberPointerData {
 
 #[derive(Debug, Clone)]
 pub struct ConstraintMintTransferHookData {
-    pub transfer_hook_data: Expr,
+    pub transfer_hook_data: ConstraintTransferHookGroup,
 }
 
 #[derive(Debug, Clone)]
@@ -960,8 +978,8 @@ pub struct ConstraintTokenMintGroup {
     pub metadata_pointer_data: Option<Expr>,
     pub group_pointer_data: Option<Expr>,
     pub group_member_pointer_data: Option<Expr>,
-    pub transfer_hook_data: Option<Expr>,
     pub close_authority: Option<Expr>,
+    pub transfer_hook_data: Option<ConstraintTransferHookGroup>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

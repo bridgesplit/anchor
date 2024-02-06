@@ -704,11 +704,6 @@ fn generate_constraint_init_group(
                 None => quote! {},
             };
 
-            let transfer_hook_data_check = match transfer_hook_data {
-                Some(fa) => check_scope.generate_check(fa),
-                None => quote! {},
-            };
-
             let close_authority_check = match close_authority {
                 Some(fa) => check_scope.generate_check(fa),
                 None => quote! {},
@@ -729,7 +724,6 @@ fn generate_constraint_init_group(
                 #metadata_pointer_data_check
                 #group_pointer_data_check
                 #group_member_pointer_data_check
-                #transfer_hook_data_check
                 #close_authority_check
             };
 
@@ -743,10 +737,10 @@ fn generate_constraint_init_group(
             #[cfg(not(target_os = "solana"))]
             let confidential_transfer_data = match confidential_transfer_data {
                 Some(fa) => {
-                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferIntializeMintArgs>::Some(&#fa) }
+                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferInitializeArgs>::Some(&#fa) }
                 }
                 None => {
-                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferIntializeMintArgs>::None }
+                    quote! { Option::<&::anchor_spl::token_interface::ConfidentialTransferInitializeArgs>::None }
                 }
             };
 
@@ -786,14 +780,7 @@ fn generate_constraint_init_group(
                 }
             };
 
-            let transfer_hook_data = match transfer_hook_data {
-                Some(fa) => {
-                    quote! { Option::<&::anchor_spl::token_interface::TransferHookInitializeArgs>::Some(&#fa) }
-                }
-                None => {
-                    quote! { Option::<&::anchor_spl::token_interface::TransferHookInitializeArgs>::None }
-                }
-            };
+            let transfer_hook_data = generate_constraint_extensions(f, transfer_hook_data, accs);
 
             let close_authority = match close_authority {
                 Some(fa) => quote! { Option::<&anchor_lang::prelude::Pubkey>::Some(&#fa.key()) },
@@ -828,13 +815,13 @@ fn generate_constraint_init_group(
                     // #[cfg(not(target_os = "solana"))]
                     // if #confidential_transfer_data.is_some() {
                     //     let cpi_program = #token_program.to_account_info();
-                    //     let accounts = ::anchor_spl::token_interface::ConfidentialTransferIntializeMint {
+                    //     let accounts = ::anchor_spl::token_interface::ConfidentialTransferInitialize {
                     //         token_program_id: #token_program.to_account_info(),
                     //         mint: #field.to_account_info(),
                     //     };
                     //     let c = #confidential_transfer_data.unwrap().clone();
                     //     let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
-                    //     ::anchor_spl::token_interface::confidential_transfer_initialize_mint(cpi_ctx, c)?;
+                    //     ::anchor_spl::token_interface::confidential_transfer_initialize(cpi_ctx, c)?;
                     // }
 
                     if #metadata_pointer_data.is_some() {
@@ -1025,6 +1012,40 @@ fn generate_constraint_init_group(
             }
         }
     }
+}
+
+fn generate_constraint_extensions(
+    f: &Field,
+    c: &Option<TransferHookGroup>,
+    accs: &AccountsStruct,
+) -> proc_macro2::TokenStream {
+    let name = &f.ident;
+    let name_str = name.to_string();
+    let account_ref = generate_account_ref(f);
+    let mut check_scope = OptionalCheckScope::new_with_field(accs, name);
+
+    match c {
+        Some(ExtensionsInitKind::TransferHook { authority, transfer_hook_program_id }) => {
+            let authority_optional_check = match authority {
+                Some(a) => {
+                    check_scope.generate_check(a)
+                }
+                None => quote! {},
+            };
+            let transfer_hook_program_id_optional_check = match transfer_hook_program_id {
+                Some(a) => {
+                    check_scope.generate_check(a)
+                }
+                None => quote! {},
+            };
+            quote! {
+                #authority_optional_check
+                #transfer_hook_program_id_optional_check
+            }
+        },
+        None => quote! {},
+    }
+    
 }
 
 fn generate_constraint_seeds(f: &Field, c: &ConstraintSeedsGroup) -> proc_macro2::TokenStream {
