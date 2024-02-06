@@ -668,7 +668,7 @@ fn generate_constraint_init_group(
             group_pointer_data,
             group_member_pointer_data,
             transfer_hook_data,
-            close_authority
+            close_authority,
         } => {
             let token_program = match token_program {
                 Some(t) => t.to_token_stream(),
@@ -886,10 +886,9 @@ fn generate_constraint_init_group(
                         let accounts = ::anchor_spl::token_interface::MintCloseAuthorityInitialize {
                             token_program_id: #token_program.to_account_info(),
                             mint: #field.to_account_info(),
-                            authority: #close_authority.unwrap().to_account_info(),
                         };
                         let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
-                        ::anchor_spl::token_interface::mint_close_authority_initialize(cpi_ctx, c)?;
+                        ::anchor_spl::token_interface::mint_close_authority_initialize(cpi_ctx, #close_authority)?;
                     }
 
                     if !#if_needed || owner_program == &anchor_lang::solana_program::system_program::ID {
