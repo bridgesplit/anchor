@@ -17,6 +17,7 @@ pub fn find_mint_account_size(extensions: Option<&ExtensionsVec>) -> Result<usiz
 pub mod group_member_pointer;
 pub mod group_pointer;
 pub mod metadata_pointer;
+pub mod mint_close_authority;
 pub mod token_group;
 pub mod token_metadata;
 pub mod transfer_hook;
@@ -24,6 +25,7 @@ pub mod transfer_hook;
 pub use group_member_pointer::*;
 pub use group_pointer::*;
 pub use metadata_pointer::*;
+pub use mint_close_authority::*;
 pub use token_group::*;
 pub use token_metadata::*;
 pub use transfer_hook::*;

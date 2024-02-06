@@ -668,6 +668,7 @@ fn generate_constraint_init_group(
             group_pointer_data,
             group_member_pointer_data,
             transfer_hook_data,
+            close_authority
         } => {
             let token_program = match token_program {
                 Some(t) => t.to_token_stream(),
@@ -708,6 +709,11 @@ fn generate_constraint_init_group(
                 None => quote! {},
             };
 
+            let close_authority_check = match close_authority {
+                Some(fa) => check_scope.generate_check(fa),
+                None => quote! {},
+            };
+
             let system_program_optional_check = check_scope.generate_check(system_program);
             let token_program_optional_check = check_scope.generate_check(&token_program);
             let rent_optional_check = check_scope.generate_check(rent);
@@ -724,6 +730,7 @@ fn generate_constraint_init_group(
                 #group_pointer_data_check
                 #group_member_pointer_data_check
                 #transfer_hook_data_check
+                #close_authority_check
             };
 
             let payer_optional_check = check_scope.generate_check(payer);
@@ -786,6 +793,11 @@ fn generate_constraint_init_group(
                 None => {
                     quote! { Option::<&::anchor_spl::token_interface::TransferHookInitializeArgs>::None }
                 }
+            };
+
+            let close_authority = match close_authority {
+                Some(fa) => quote! { Option::<&anchor_lang::prelude::Pubkey>::Some(&#fa.key()) },
+                None => quote! { Option::<&anchor_lang::prelude::Pubkey>::None },
             };
 
             let create_account = generate_create_account(
@@ -867,6 +879,17 @@ fn generate_constraint_init_group(
                         let c = #transfer_hook_data.unwrap().clone();
                         let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
                         ::anchor_spl::token_interface::transfer_hook_initialize(cpi_ctx, c)?;
+                    }
+
+                    if #close_authority.is_some() {
+                        let cpi_program = #token_program.to_account_info();
+                        let accounts = ::anchor_spl::token_interface::MintCloseAuthorityInitialize {
+                            token_program_id: #token_program.to_account_info(),
+                            mint: #field.to_account_info(),
+                            authority: #close_authority.unwrap().to_account_info(),
+                        };
+                        let cpi_ctx = anchor_lang::context::CpiContext::new(cpi_program, accounts);
+                        ::anchor_spl::token_interface::mint_close_authority_initialize(cpi_ctx, c)?;
                     }
 
                     if !#if_needed || owner_program == &anchor_lang::solana_program::system_program::ID {

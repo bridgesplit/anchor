@@ -681,6 +681,7 @@ pub enum ConstraintToken {
     MintGroupPointerData(Context<ConstraintMintGroupPointerData>),
     MintGroupMemberPointerData(Context<ConstraintMintGroupMemberPointerData>),
     MintTransferHookData(Context<ConstraintMintTransferHookData>),
+    MintCloseAuthority(Context<ConstraintMintCloseAuthority>),
     MintTokenProgram(Context<ConstraintTokenProgram>),
     Bump(Context<ConstraintTokenBump>),
     ProgramSeed(Context<ConstraintProgramSeed>),
@@ -835,6 +836,7 @@ pub enum InitKind {
         group_pointer_data: Option<Expr>,
         group_member_pointer_data: Option<Expr>,
         transfer_hook_data: Option<Expr>,
+        close_authority: Option<Expr>,
     },
 }
 
@@ -891,6 +893,11 @@ pub struct ConstraintMintGroupMemberPointerData {
 #[derive(Debug, Clone)]
 pub struct ConstraintMintTransferHookData {
     pub transfer_hook_data: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintMintCloseAuthority {
+    pub close_authority: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -954,6 +961,7 @@ pub struct ConstraintTokenMintGroup {
     pub group_pointer_data: Option<Expr>,
     pub group_member_pointer_data: Option<Expr>,
     pub transfer_hook_data: Option<Expr>,
+    pub close_authority: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.

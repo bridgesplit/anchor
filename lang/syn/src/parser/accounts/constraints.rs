@@ -150,6 +150,12 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                         transfer_hook_data: stream.parse()?,
                     },
                 )),
+                "close_authority" => ConstraintToken::MintCloseAuthority(Context::new(
+                    span,
+                    ConstraintMintCloseAuthority {
+                        close_authority: stream.parse()?,
+                    },
+                )),
                 _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
             }
         }
@@ -424,6 +430,7 @@ pub struct ConstraintGroupBuilder<'ty> {
     pub mint_group_pointer_data: Option<Context<ConstraintMintGroupPointerData>>,
     pub mint_group_member_pointer_data: Option<Context<ConstraintMintGroupMemberPointerData>>,
     pub mint_transfer_hook_data: Option<Context<ConstraintMintTransferHookData>>,
+    pub mint_close_authority: Option<Context<ConstraintMintCloseAuthority>>,
     pub bump: Option<Context<ConstraintTokenBump>>,
     pub program_seed: Option<Context<ConstraintProgramSeed>>,
     pub realloc: Option<Context<ConstraintRealloc>>,
@@ -465,6 +472,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_group_pointer_data: None,
             mint_group_member_pointer_data: None,
             mint_transfer_hook_data: None,
+            mint_close_authority: None,
             bump: None,
             program_seed: None,
             realloc: None,
@@ -673,6 +681,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             mint_group_pointer_data,
             mint_group_member_pointer_data,
             mint_transfer_hook_data,
+            mint_close_authority,
             bump,
             program_seed,
             realloc,
@@ -768,8 +777,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             &mint_group_pointer_data,
             &mint_group_member_pointer_data,
             &mint_transfer_hook_data,
+            &mint_close_authority,
         ) {
-            (None, None, None, None, None, None, None, None, None, None) => None,
+            (None, None, None, None, None, None, None, None, None, None, None) => None,
             _ => Some(ConstraintTokenMintGroup {
                 decimals: mint_decimals
                     .as_ref()
@@ -803,6 +813,9 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 transfer_hook_data: mint_transfer_hook_data
                     .as_ref()
                     .map(|a| a.clone().into_inner().transfer_hook_data),
+                close_authority: mint_close_authority
+                    .as_ref()
+                    .map(|a| a.clone().into_inner().close_authority),
             }),
         };
 
@@ -848,6 +861,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                         group_pointer_data: mint_group_pointer_data.map(|gpd| gpd.into_inner().group_pointer_data),
                         group_member_pointer_data: mint_group_member_pointer_data.map(|gmpd| gmpd.into_inner().group_member_pointer_data),
                         transfer_hook_data: mint_transfer_hook_data.map(|thd| thd.into_inner().transfer_hook_data),
+                        close_authority: mint_close_authority.map(|ca| ca.into_inner().close_authority),
                     }
                 } else {
                     InitKind::Program {
@@ -914,6 +928,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                 self.add_mint_group_member_pointer_data(c)
             }
             ConstraintToken::MintTransferHookData(c) => self.add_mint_transfer_hook_data(c),
+            ConstraintToken::MintCloseAuthority(c) => self.add_mint_close_authority(c),
             ConstraintToken::MintTokenProgram(c) => self.add_mint_token_program(c),
             ConstraintToken::Bump(c) => self.add_bump(c),
             ConstraintToken::ProgramSeed(c) => self.add_program_seed(c),
@@ -1315,6 +1330,20 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ));
         }
         self.mint_transfer_hook_data.replace(c);
+        Ok(())
+    }
+
+    fn add_mint_close_authority(
+        &mut self,
+        c: Context<ConstraintMintCloseAuthority>,
+    ) -> ParseResult<()> {
+        if self.mint_close_authority.is_some() {
+            return Err(ParseError::new(
+                c.span(),
+                "mint close_authority already provided",
+            ));
+        }
+        self.mint_close_authority.replace(c);
         Ok(())
     }
 
