@@ -117,7 +117,8 @@ pub fn harvest_withheld_tokens_to_mint<'info>(
     let mut account_infos = vec![ctx.accounts.token_program_id, ctx.accounts.mint];
     account_infos.extend_from_slice(&sources);
 
-    solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds).map_err(Into::into)
+    solana_program::program::invoke_signed(&ix, &account_infos, ctx.signer_seeds)
+        .map_err(Into::into)
 }
 
 #[derive(Accounts)]

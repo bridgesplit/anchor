@@ -669,6 +669,7 @@ pub enum ConstraintToken {
     TokenMint(Context<ConstraintTokenMint>),
     TokenAuthority(Context<ConstraintTokenAuthority>),
     TokenTokenProgram(Context<ConstraintTokenProgram>),
+    TokenExtensions(Context<ConstraintTokenExtensions>),
     AssociatedTokenMint(Context<ConstraintTokenMint>),
     AssociatedTokenAuthority(Context<ConstraintTokenAuthority>),
     AssociatedTokenTokenProgram(Context<ConstraintTokenProgram>),
@@ -696,6 +697,8 @@ pub enum ConstraintToken {
     ExtensionCloseAuthority(Context<ConstraintExtensionAuthority>),
     ExtensionTokenHookAuthority(Context<ConstraintExtensionAuthority>),
     ExtensionTokenHookProgramId(Context<ConstraintExtensionTokenHookProgramId>),
+    ExtensionNonTransferrable(Context<ConstraintNonTransferrable>),
+    ExtensionPermanentDelegate(Context<ConstraintExtensionPermanentDelegate>),
 }
 
 impl Parse for ConstraintToken {
@@ -838,6 +841,15 @@ pub struct ConstraintExtensionTokenHookProgramId {
     pub program_id: Expr,
 }
 
+pub struct ConstraintNonTransferrable {
+    pub non_transferrable: Expr,
+}
+
+#[derive(Debug, Clone)]
+pub struct ConstraintExtensionPermanentDelegate {
+    pub delegate: Expr,
+}
+
 #[derive(Debug, Clone)]
 #[allow(clippy::large_enum_variant)]
 pub enum InitKind {
@@ -944,6 +956,11 @@ pub struct ConstraintTokenProgram {
 }
 
 #[derive(Debug, Clone)]
+pub struct ConstraintTokenExtensions {
+    pub extensions: Expr,
+}
+
+#[derive(Debug, Clone)]
 pub struct ConstraintMintAuthority {
     pub mint_auth: Expr,
 }
@@ -980,6 +997,7 @@ pub struct ConstraintTokenAccountGroup {
     pub mint: Option<Expr>,
     pub authority: Option<Expr>,
     pub token_program: Option<Expr>,
+    pub extensions: Option<Expr>,
 }
 
 #[derive(Debug, Clone)]
@@ -993,6 +1011,7 @@ pub struct ConstraintTokenMintGroup {
 
 #[derive(Debug, Clone)]
 pub struct ConstraintExtensionGroup {
+    // mint extensions
     pub group_pointer_authority: Option<Expr>,
     pub group_pointer_group_address: Option<Expr>,
     pub group_member_pointer_authority: Option<Expr>,
@@ -1002,6 +1021,9 @@ pub struct ConstraintExtensionGroup {
     pub close_authority: Option<Expr>,
     pub token_hook_authority: Option<Expr>,
     pub token_hook_program_id: Option<Expr>,
+    pub non_transferrable: Option<Expr>,
+    // token account extensions
+    pub permanent_delegate: Option<Expr>,
 }
 
 // Syntaxt context object for preserving metadata about the inner item.
