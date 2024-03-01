@@ -219,6 +219,27 @@ pub fn parse_token(stream: ParseStream) -> ParseResult<ConstraintToken> {
                         _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
                     }
                 }
+                "permanent_delegate" => {
+                    stream.parse::<Token![:]>()?;
+                    stream.parse::<Token![:]>()?;
+                    let kw = stream.call(Ident::parse_any)?.to_string();
+                    stream.parse::<Token![=]>()?;
+
+                    let span = ident
+                        .span()
+                        .join(stream.span())
+                        .unwrap_or_else(|| ident.span());
+
+                    match kw.as_str() {
+                        "delegate" => ConstraintToken::ExtensionPermanentDelegate(Context::new(
+                            span,
+                            ConstraintExtensionPermanentDelegate {
+                                permanent_delegate: stream.parse()?,
+                            },
+                        )),
+                        _ => return Err(ParseError::new(ident.span(), "Invalid attribute")),
+                    }
+                }
                 "transfer_hook" => {
                     stream.parse::<Token![:]>()?;
                     stream.parse::<Token![:]>()?;
@@ -975,6 +996,7 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
                         metadata_pointer_authority: extension_metadata_pointer_authority.map(|mpa| mpa.into_inner().authority),
                         metadata_pointer_metadata_address: extension_metadata_pointer_metadata_address.map(|mpma| mpma.into_inner().metadata_address),
                         close_authority: extension_close_authority.map(|ca| ca.into_inner().authority),
+                        permanent_delegate: extension_permanent_delegate.map(|pd| pd.into_inner().permanent_delegate),
                         token_hook_authority: extension_transfer_hook_authority.map(|tha| tha.into_inner().authority),
                         token_hook_program_id: extension_transfer_hook_program_id.map(|thpid| thpid.into_inner().program_id),
                     }
@@ -1063,9 +1085,6 @@ impl<'ty> ConstraintGroupBuilder<'ty> {
             ConstraintToken::ExtensionTokenHookAuthority(c) => self.add_extension_authority(c),
             ConstraintToken::ExtensionTokenHookProgramId(c) => {
                 self.add_extension_token_hook_program_id(c)
-            }
-            ConstraintToken::ExtensionNonTransferrable(c) => {
-                self.add_extension_non_transferrable(c)
             }
             ConstraintToken::ExtensionPermanentDelegate(c) => {
                 self.add_extension_permanent_delegate(c)

@@ -697,7 +697,6 @@ pub enum ConstraintToken {
     ExtensionCloseAuthority(Context<ConstraintExtensionAuthority>),
     ExtensionTokenHookAuthority(Context<ConstraintExtensionAuthority>),
     ExtensionTokenHookProgramId(Context<ConstraintExtensionTokenHookProgramId>),
-    ExtensionNonTransferrable(Context<ConstraintNonTransferrable>),
     ExtensionPermanentDelegate(Context<ConstraintExtensionPermanentDelegate>),
 }
 
@@ -841,13 +840,9 @@ pub struct ConstraintExtensionTokenHookProgramId {
     pub program_id: Expr,
 }
 
-pub struct ConstraintNonTransferrable {
-    pub non_transferrable: Expr,
-}
-
 #[derive(Debug, Clone)]
 pub struct ConstraintExtensionPermanentDelegate {
-    pub delegate: Expr,
+    pub permanent_delegate: Expr,
 }
 
 #[derive(Debug, Clone)]
@@ -885,6 +880,7 @@ pub enum InitKind {
         metadata_pointer_authority: Option<Expr>,
         metadata_pointer_metadata_address: Option<Expr>,
         close_authority: Option<Expr>,
+        permanent_delegate: Option<Expr>,
         token_hook_authority: Option<Expr>,
         token_hook_program_id: Option<Expr>,
     },
@@ -1021,8 +1017,6 @@ pub struct ConstraintExtensionGroup {
     pub close_authority: Option<Expr>,
     pub token_hook_authority: Option<Expr>,
     pub token_hook_program_id: Option<Expr>,
-    pub non_transferrable: Option<Expr>,
-    // token account extensions
     pub permanent_delegate: Option<Expr>,
 }
 
