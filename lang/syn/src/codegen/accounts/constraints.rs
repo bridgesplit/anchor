@@ -844,9 +844,6 @@ fn generate_constraint_init_group(
                 Some(pd) => quote! { &#pd },
                 None => quote! { Option::<&anchor_lang::prelude::Pubkey>::None },
             };
-                Some(tha) => quote! { Option::<anchor_lang::prelude::Pubkey>::Some(#tha.key()) },
-                None => quote! { Option::<anchor_lang::prelude::Pubkey>::None },
-            };
 
             let transfer_hook_program_id = match transfer_hook_program_id {
                 Some(thpid) => {

@@ -990,7 +990,6 @@ pub struct ConstraintTokenMintGroup {
     pub token_program: Option<Expr>,
 }
 
-
 // Syntaxt context object for preserving metadata about the inner item.
 #[derive(Debug, Clone)]
 pub struct Context<T> {
