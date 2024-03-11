@@ -841,6 +841,9 @@ fn generate_constraint_init_group(
             };
 
             let transfer_hook_authority = match transfer_hook_authority {
+                Some(pd) => quote! { &#pd },
+                None => quote! { Option::<&anchor_lang::prelude::Pubkey>::None },
+            };
                 Some(tha) => quote! { Option::<anchor_lang::prelude::Pubkey>::Some(#tha.key()) },
                 None => quote! { Option::<anchor_lang::prelude::Pubkey>::None },
             };
