@@ -848,7 +848,7 @@ fn generate_constraint_init_group(
 
             let create_account = generate_create_account(
                 field,
-                quote! {::anchor_spl::token_interface::find_mint_account_size(#extensions)?},
+                quote! {::anchor_spl::token_interface::find_mint_account_size(&#extensions)?},
                 quote! {&#token_program.key()},
                 quote! {#payer},
                 seeds_with_bump,
