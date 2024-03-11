@@ -27,15 +27,6 @@ pub struct CreateMintAccountArgs {
     pub uri: String,
 }
 
-pub const MINT_EXTENSIONS: [ExtensionType; 6] = [
-    ExtensionType::MetadataPointer,
-    ExtensionType::GroupMemberPointer,
-    ExtensionType::TransferHook,
-    ExtensionType::MintCloseAuthority,
-    ExtensionType::PermanentDelegate,
-    ExtensionType::NonTransferable,
-];
-
 #[derive(Accounts)]
 #[instruction(args: CreateMintAccountArgs)]
 pub struct CreateMintAccount<'info> {
@@ -55,7 +46,6 @@ pub struct CreateMintAccount<'info> {
         mint::decimals = 0,
         mint::authority = authority,
         mint::freeze_authority = authority,
-        mint::extensions = MINT_EXTENSIONS.to_vec(),
         extensions::metadata_pointer::authority = authority.key(),
         extensions::metadata_pointer::metadata_address = mint.key(),
         extensions::group_member_pointer::authority = authority.key(),
